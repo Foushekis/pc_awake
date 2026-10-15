@@ -33,7 +33,9 @@ def run_cli():
         if s["error"]:
             print("  " + s["error"])
         for r in s["requests"]:
-            tag = " (ignored)" if r.ignored else ("" if core.blocks_idle(r) else " (does not block sleep)")
+            if not core.blocks_idle(r):
+                continue
+            tag = " (ignored)" if r.ignored else ""
             print(f"  [{r.category}] {core.friendly_name(r)} ({r.kind}){tag}  {r.reason}")
         if not s["requests"] and not s["error"]:
             print("  nothing")
@@ -131,6 +133,9 @@ def run_gui():
 
     ttk.Button(req_bar, text="Ignore selected (Windows override)",
                command=lambda: toggle_ignore(True)).pack(side="left", padx=2, pady=4)
+    show_harmless = tk.BooleanVar(value=False)
+    ttk.Checkbutton(req_bar, text="Show harmless (EXECUTION)", variable=show_harmless
+                    ).pack(side="right", padx=4)
     ttk.Button(req_bar, text="Stop ignoring",
                command=lambda: toggle_ignore(False)).pack(side="left", padx=2)
     ttk.Button(dev_bar, text="Disable wake for selected",
@@ -171,7 +176,7 @@ def run_gui():
         refill(req_tree, "req", [
             (rid(r), (core.friendly_name(r), r.category, r.kind,
              "ignored" if r.ignored else ("ACTIVE" if core.blocks_idle(r) else "harmless"),
-             r.reason or core.REQUEST_BLOCKS.get(r.category, ""))) for r in s["requests"]])
+             r.reason or core.REQUEST_BLOCKS.get(r.category, ""))) for r in s["requests"] if show_harmless.get() or core.blocks_idle(r)])
         refill(timer_tree, "wt", [(f"w{i}", (w.owner, w.detail)) for i, w in enumerate(s["wake_timers"])])
         refill(dev_tree, "dev", [(f"d{i}", (d,)) for i, d in enumerate(s["wake_devices"])])
         note.config(text=s["error"] or "")
