@@ -33,7 +33,7 @@ def run_cli():
         if s["error"]:
             print("  " + s["error"])
         for r in s["requests"]:
-            tag = " (ignored)" if r.ignored else ""
+            tag = " (ignored)" if r.ignored else ("" if core.blocks_idle(r) else " (does not block sleep)")
             print(f"  [{r.category}] {core.friendly_name(r)} ({r.kind}){tag}  {r.reason}")
         if not s["requests"] and not s["error"]:
             print("  nothing")
@@ -170,7 +170,7 @@ def run_gui():
             lab.config(text=txt)
         refill(req_tree, "req", [
             (rid(r), (core.friendly_name(r), r.category, r.kind,
-             "ignored" if r.ignored else "ACTIVE",
+             "ignored" if r.ignored else ("ACTIVE" if core.blocks_idle(r) else "harmless"),
              r.reason or core.REQUEST_BLOCKS.get(r.category, ""))) for r in s["requests"]])
         refill(timer_tree, "wt", [(f"w{i}", (w.owner, w.detail)) for i, w in enumerate(s["wake_timers"])])
         refill(dev_tree, "dev", [(f"d{i}", (d,)) for i, d in enumerate(s["wake_devices"])])

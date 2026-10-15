@@ -20,7 +20,7 @@ REQUEST_BLOCKS = {
     "DISPLAY": "keeps the screen on (and blocks the screensaver)",
     "SYSTEM": "keeps the PC from sleeping",
     "AWAYMODE": "away mode - PC looks asleep but keeps running",
-    "EXECUTION": "app keeps running during sleep / delays sleep",
+    "EXECUTION": "stays running in the background; does NOT block sleep or screen-off",
     "PERFBOOST": "performance boost",
     "ACTIVELOCKSCREEN": "lock screen",
 }
@@ -54,6 +54,12 @@ def parse_requests(text):
         elif last is not None:
             last.reason = (last.reason + " " + line).strip()
     return out
+
+
+def blocks_idle(req):
+    """Only DISPLAY/SYSTEM/AWAYMODE requests stop screen-off, screensaver or sleep.
+    EXECUTION (e.g. Electron apps) just exempts a process from being suspended."""
+    return req.category in ("DISPLAY", "SYSTEM", "AWAYMODE")
 
 
 def friendly_name(req):
@@ -328,7 +334,7 @@ def snapshot():
         r.ignored = is_ignored(r, overrides)
     active = [r for r in reqs if not r.ignored]
     display_block = [r for r in active if r.category == "DISPLAY"]
-    system_block = [r for r in active if r.category in ("SYSTEM", "EXECUTION", "AWAYMODE")]
+    system_block = [r for r in active if r.category in ("SYSTEM", "AWAYMODE")]
     timers = [
         Timer("Screensaver", screensaver_timeout(), display_block),
         Timer("Screen turns off", power_timeout(SUB_VIDEO, VIDEOIDLE, ac), display_block),

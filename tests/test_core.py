@@ -66,3 +66,9 @@ class T2(unittest.TestCase):
         allv = "Xbox Controller\nHID Keyboard Device\n"
         self.assertEqual(core.parse_wake_devices("HID Keyboard Device\n", allv), ["HID Keyboard Device"])
         self.assertEqual(core.parse_wake_devices("NONE\n", allv), [])
+
+
+class T3(unittest.TestCase):
+    def test_execution_does_not_block(self):
+        self.assertFalse(core.blocks_idle(core.Request("EXECUTION", "PROCESS", "claude.exe")))
+        self.assertTrue(core.blocks_idle(core.Request("SYSTEM", "DRIVER", "Xbox")))
