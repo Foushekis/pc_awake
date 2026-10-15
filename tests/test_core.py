@@ -43,3 +43,26 @@ class T(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class T2(unittest.TestCase):
+    def test_overrides(self):
+        ov = core.parse_overrides("[PROCESS]\nvlc.exe DISPLAY SYSTEM\n[DRIVER] Xbox Wireless Adapter SYSTEM\n")
+        self.assertEqual(ov[("PROCESS", "vlc.exe")], {"DISPLAY", "SYSTEM"})
+        self.assertEqual(ov[("DRIVER", "xbox wireless adapter")], {"SYSTEM"})
+        r = core.parse_requests("SYSTEM:\n[DRIVER] Xbox Wireless Adapter\n")[0]
+        self.assertTrue(core.is_ignored(r, ov))
+        self.assertFalse(core.is_ignored(core.Request("DISPLAY", "DRIVER", "Xbox Wireless Adapter"), ov))
+
+    def test_waketimers(self):
+        t = core.parse_waketimers(
+            "Timer set by [SERVICE] \\Device\\X\\svchost.exe expires at 3:00:00 AM on 10/16/2026.\n"
+            "  Reason: Windows will execute 'NT TASK\\Update' scheduled task.\n")
+        self.assertEqual(t[0].owner, "svchost.exe")
+        self.assertIn("Reason", t[0].detail)
+        self.assertEqual(core.parse_waketimers("There are no active wake timers."), [])
+
+    def test_wake_devices(self):
+        allv = "Xbox Controller\nHID Keyboard Device\n"
+        self.assertEqual(core.parse_wake_devices("HID Keyboard Device\n", allv), ["HID Keyboard Device"])
+        self.assertEqual(core.parse_wake_devices("NONE\n", allv), [])

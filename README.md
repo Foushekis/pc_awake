@@ -7,6 +7,13 @@ Shows, live:
 - which **processes/drivers/services** are keeping the screen or system awake
   (`powercfg /requests`), and which timers they are blocking
 
+- **wake timers** (`powercfg /waketimers`) and **devices allowed to wake the PC**
+  (`powercfg /devicequery wake_armed`) - e.g. an Xbox controller
+- **ignore switch:** select a blocker and click *Ignore selected* to make Windows
+  ignore it (`powercfg /requestsoverride`, persistent, undo with *Stop ignoring*);
+  select a wake device and click *Disable wake* (`powercfg /devicedisablewake`).
+  These change system settings and need Administrator.
+
 Run (Python 3.10+, no dependencies):
 
     python monitor.py          # window
