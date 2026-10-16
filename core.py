@@ -277,6 +277,16 @@ def _save_store(d):
         pass
 
 
+def get_setting(key, default=None):
+    return _load_store().get("settings", {}).get(key, default)
+
+
+def set_setting(key, value):
+    store = _load_store()
+    store.setdefault("settings", {})[key] = value
+    _save_store(store)
+
+
 def read_overrides():
     """Windows' override list, plus what we applied ourselves (in case the
     list output isn't parseable on this Windows version/language)."""

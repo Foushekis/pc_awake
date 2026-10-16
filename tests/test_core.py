@@ -72,3 +72,26 @@ class T3(unittest.TestCase):
     def test_execution_does_not_block(self):
         self.assertFalse(core.blocks_idle(core.Request("EXECUTION", "PROCESS", "claude.exe")))
         self.assertTrue(core.blocks_idle(core.Request("SYSTEM", "DRIVER", "Xbox")))
+
+
+class T4(unittest.TestCase):
+    def test_launch_command(self):
+        import autostart
+        self.assertEqual(
+            autostart.launch_command(True, frozen=True, executable=r"C:\a\PCAwakeMonitor.exe"),
+            (r"C:\a\PCAwakeMonitor.exe", "--minimized", "C:\\a" if os.sep == "\\" else ""))
+        cmd, args, _ = autostart.launch_command(False, frozen=False, executable="/py/python",
+                                                script="/x/monitor.py")
+        self.assertEqual((cmd, args), ("/py/python", '"/x/monitor.py"'))
+        self.assertTrue(autostart.launch_command(True, frozen=False, executable="/py/python",
+                                                 script="/x/monitor.py")[1].endswith("--minimized"))
+
+    def test_task_xml(self):
+        import autostart
+        from xml.etree import ElementTree as ET
+        x = autostart.task_xml("PC\\me", "C:\\Program Files\\a&b.exe", '"m.py" --minimized', "C:\\w")
+        root = ET.fromstring(x.replace('encoding="UTF-16"', ""))
+        ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+        self.assertEqual(root.find(".//t:Command", ns).text, "C:\\Program Files\\a&b.exe")
+        self.assertEqual(root.find(".//t:RunLevel", ns).text, "HighestAvailable")
+        self.assertEqual(root.find(".//t:DisallowStartIfOnBatteries", ns).text, "false")

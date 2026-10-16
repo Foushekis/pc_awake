@@ -4,10 +4,13 @@
     python monitor.py --cli    # live console view
 """
 import ctypes
+import queue
 import sys
 import time
 
+import autostart
 import core
+from tray import Tray
 
 
 def rid(r):
@@ -52,7 +55,7 @@ def run_cli():
         time.sleep(1)
 
 
-def run_gui():
+def run_gui(start_hidden=False):
     import tkinter as tk
     from tkinter import messagebox, ttk
 
@@ -149,8 +152,55 @@ def run_gui():
                                                 f'"{__file__}"', None, 1)
         root.destroy()
 
-    ttk.Button(root, text="Relaunch as Administrator", command=elevate).pack(pady=(0, 10))
+    # ---- start with Windows
+    opts = ttk.LabelFrame(root, text="Start with Windows")
+    opts.pack(fill="x", padx=12, pady=(0, 6))
+    auto_var = tk.BooleanVar(value=autostart.is_enabled())
+    mode_var = tk.StringVar(value=core.get_setting("start_mode", "tray"))
+    tray_ok = Tray.available
+
+    def apply_autostart():
+        core.set_setting("start_mode", mode_var.get())
+        if auto_var.get():
+            ok, msg = autostart.enable(minimized=mode_var.get() == "tray")
+        else:
+            ok, msg = autostart.disable()
+        if not ok:
+            auto_var.set(autostart.is_enabled())
+        note.config(text=msg)
+
+    ttk.Checkbutton(opts, text="Launch automatically at login", variable=auto_var,
+                    command=apply_autostart).pack(side="left", padx=6, pady=4)
+    ttk.Radiobutton(opts, text="Show window", value="window", variable=mode_var,
+                    command=apply_autostart).pack(side="left", padx=6)
+    ttk.Radiobutton(opts, text="Minimized to tray" if tray_ok else "Minimized to taskbar",
+                    value="tray", variable=mode_var, command=apply_autostart).pack(side="left")
+    ttk.Button(opts, text="Relaunch as Administrator", command=elevate).pack(side="right", padx=6)
+
+    # ---- tray icon / hide-on-close
+    events = queue.Queue()
+    tray = Tray(events) if tray_ok else None
+    if tray:
+        tray.start()
+    closing = {"v": False}
+
+    def quit_app():
+        closing["v"] = True
+        if tray:
+            tray.stop()
+        root.destroy()
+
+    def on_close():
+        if tray and mode_var.get() == "tray":
+            root.withdraw()  # keep running in the tray; use the tray menu to quit
+        else:
+            quit_app()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+    if start_hidden:
+        root.withdraw() if tray else root.iconify()
     sigs = {}
+    state = {"err": ""}
 
     def refill(tree, key, items):
         if sigs.get(key) == [i[0] for i in items]:
@@ -182,7 +232,25 @@ def run_gui():
              r.reason or core.REQUEST_BLOCKS.get(r.category, ""))) for r in s["requests"] if show_harmless.get() or core.blocks_idle(r)])
         refill(timer_tree, "wt", [(f"w{i}", (w.owner, w.detail)) for i, w in enumerate(s["wake_timers"])])
         refill(dev_tree, "dev", [(f"d{i}", (d,)) for i, d in enumerate(s["wake_devices"])])
-        note.config(text=s["error"] or "")
+        if s["error"]:
+            note.config(text=s["error"])
+        elif note.cget("text") == state["err"]:
+            note.config(text="")  # the admin warning no longer applies
+        state["err"] = s["error"] or ""
+        if tray:
+            blockers = [r for r in s["requests"] if core.blocks_idle(r) and not r.ignored]
+            tip = f"Idle {core.fmt_duration(s['idle'])} - " + (
+                "kept awake by " + blockers_text(blockers) if blockers else "nothing blocking")
+            tray.update(tip, bool(blockers))
+        try:
+            while True:
+                ev = events.get_nowait()
+                if ev == "quit":
+                    return quit_app()
+                root.deiconify()
+                root.lift()
+        except queue.Empty:
+            pass
         root.after(1000, tick)
 
     tick()
@@ -192,4 +260,4 @@ def run_gui():
 if __name__ == "__main__":
     if sys.platform != "win32":
         sys.exit("This app only runs on Windows.")
-    run_cli() if "--cli" in sys.argv else run_gui()
+    run_cli() if "--cli" in sys.argv else run_gui("--minimized" in sys.argv)
