@@ -150,7 +150,7 @@ def run_gui(start_hidden=False):
         else:
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable,
                                                 f'"{__file__}"', None, 1)
-        root.destroy()
+        quit_app()
 
     # ---- start with Windows
     opts = ttk.LabelFrame(root, text="Start with Windows")
@@ -254,10 +254,38 @@ def run_gui(start_hidden=False):
         root.after(1000, tick)
 
     tick()
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        if tray:
+            tray.stop()
+
+
+def already_running():
+    """Named mutex so a second copy doesn't add a second tray icon. A copy
+    started by 'Relaunch as Administrator' waits a few seconds for the old one to exit."""
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.CreateMutexW.restype = ctypes.c_void_p
+    k32.CloseHandle.argtypes = [ctypes.c_void_p]
+    for _ in range(10):
+        handle = k32.CreateMutexW(None, False, "Local\\PCAwakeMonitor")
+        if handle and ctypes.get_last_error() != 183:  # 183 = ERROR_ALREADY_EXISTS
+            already_running.handle = handle  # keep it alive for the process lifetime
+            return False
+        if handle:
+            k32.CloseHandle(handle)
+        time.sleep(0.5)
+    return True
 
 
 if __name__ == "__main__":
     if sys.platform != "win32":
         sys.exit("This app only runs on Windows.")
-    run_cli() if "--cli" in sys.argv else run_gui("--minimized" in sys.argv)
+    if "--cli" in sys.argv:
+        run_cli()
+    elif already_running():
+        ctypes.windll.user32.MessageBoxW(
+            None, "PC Awake Monitor is already running - look for its icon in the system tray.",
+            "PC Awake Monitor", 0x40)
+    else:
+        run_gui("--minimized" in sys.argv)
