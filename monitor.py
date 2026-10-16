@@ -142,8 +142,11 @@ def run_gui():
                command=lambda: toggle_wake(False)).pack(side="left", padx=2, pady=4)
 
     def elevate():
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable,
-                                            f'"{__file__}"', None, 1)
+        if getattr(sys, "frozen", False):  # packaged .exe: relaunch itself
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, None, None, 1)
+        else:
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable,
+                                                f'"{__file__}"', None, 1)
         root.destroy()
 
     ttk.Button(root, text="Relaunch as Administrator", command=elevate).pack(pady=(0, 10))

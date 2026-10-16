@@ -23,3 +23,10 @@ Run (Python 3.10+, no dependencies):
 Administrator" button, otherwise the process list is empty.
 
 Tests (any OS): `python -m unittest discover tests`
+
+## Build an .exe
+
+Double-click `build.bat` (or run it in a terminal). It produces
+`dist\PCAwakeMonitor.exe`, a single file with no Python needed to run it. The exe
+asks for Administrator rights on launch, so the full process list works.
+The `--cli` mode needs the plain `python monitor.py --cli`, not the exe.
